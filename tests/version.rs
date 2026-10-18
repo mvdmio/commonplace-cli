@@ -1,0 +1,23 @@
+mod support;
+
+use support::commonplace;
+
+#[test]
+fn version_prints_the_crate_version_as_plain_text() {
+    let run = commonplace(&["--version"], &[]);
+
+    assert_eq!(run.code, 0);
+    assert_eq!(
+        run.stdout,
+        format!("commonplace {}\n", env!("CARGO_PKG_VERSION"))
+    );
+}
+
+#[test]
+fn no_command_is_a_usage_mistake() {
+    let run = commonplace(&[], &[]);
+
+    assert_eq!(run.code, 2);
+    assert_eq!(run.stderr_json()["error"], "usage");
+    assert!(run.stdout.is_empty());
+}

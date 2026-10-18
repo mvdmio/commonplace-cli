@@ -1,0 +1,2303 @@
+{
+  "openapi": "3.1.1",
+  "info": {
+    "title": "Commonplace API",
+    "version": "v1"
+  },
+  "tags": [
+    {
+      "name": "Books"
+    },
+    {
+      "name": "Images"
+    },
+    {
+      "name": "Legal Acceptance"
+    },
+    {
+      "name": "Notes"
+    },
+    {
+      "name": "Uploads"
+    },
+    {
+      "name": "Conversations"
+    },
+    {
+      "name": "Accounts"
+    }
+  ],
+  "paths": {
+    "/api/v1/books": {
+      "get": {
+        "tags": [
+          "Books"
+        ],
+        "summary": "List Books",
+        "description": "Lists the Books with OData query options over stored fields (camelCase): `$filter` (e.g. `isReading eq true`, `contains(title, 'Overstory')`), `$select`, `$orderby`, `$expand`, `$top` (default 50, at most 200), and `$skip`. Every row carries `id` (a number) and `url` (the Book's page); without `$select` that is all it carries. The stored fields are `title`, `author`, `isbn`, `genre`, `googleBooksLink`, `coverUrl`, `richDescriptionHtml` (the description as stored HTML, named `descriptionHtml` on the single get), `isFavorite`, `isPurchased`, `isReading`, `isCompleted`, `createdAt`, and `lastUpdatedAt`. A page that selects `richDescriptionHtml` holds at most five Books: lower `$top` or leave the description out. `nextOffset` is the `$skip` for the next page, or null on the last one.",
+        "operationId": "books.list",
+        "parameters": [
+          {
+            "name": "$filter",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "$select",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "$orderby",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "$expand",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "$top",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "$skip",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiListOfIReadOnlyDictionaryOfstringAndObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`unauthorized`: No bearer, or an unknown, ended, or expired credential. `WWW-Authenticate` names the Protected Resource Metadata.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "x-problem-types": [
+              "unauthorized"
+            ]
+          },
+          "403": {
+            "description": "`no-account`: The credential is in no Account the User belongs to. `accounts` lists where it can switch to. `license-closed`: The Account's Commonplace License is Closed. `detail` gives the reason. `browser-handoff`: A person must finish this act in the browser: open `handoffUrl`.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "x-problem-types": [
+              "no-account",
+              "license-closed",
+              "browser-handoff"
+            ]
+          },
+          "422": {
+            "description": "`validation`: The input was refused. `errors` lists fields for a body or query that does not bind; otherwise `detail` gives the rule.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "x-problem-types": [
+              "validation"
+            ]
+          },
+          "429": {
+            "description": "`rate-limited`: Over the per-User rate limit. `Retry-After` says when to try again.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "x-problem-types": [
+              "rate-limited"
+            ]
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Books"
+        ],
+        "summary": "Create a Book",
+        "description": "Stores a Book from the fields you send, as the Edit page's form would; Google Books is never asked (the MCP tool `look_up_book` does the lookup). `title` is required: a missing or blank one answers 422 on that field. Text is trimmed and a blank field is stored empty; `descriptionHtml` is HTML and is sanitized. `coverUrl` is a web address (http or https) or the read address of an image the Account holds, else 422 on `coverUrl`; an image in `descriptionHtml` follows the same rule, else 422 on `descriptionHtml`. A status flag left out starts false. Answers 201 with the new Book. `coverUrl` may also be `upload:<uploadId>` for an image sent through an Upload link (`uploads.create`, target `image`), used once. An image may also be written `<img src=\"upload:<uploadId>\">` for an image sent through an Upload link (`uploads.create`, target `image`): each upload is used once, and one that is unknown, unfinished, used, or not yours answers 422 on that field.",
+        "operationId": "books.create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiBookCreate"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiBookCreate"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiBookCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiBook"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`unauthorized`: No bearer, or an unknown, ended, or expired credential. `WWW-Authenticate` names the Protected Resource Metadata.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "x-problem-types": [
+              "unauthorized"
+            ]
+          },
+          "403": {
+            "description": "`no-account`: The credential is in no Account the User belongs to. `accounts` lists where it can switch to. `license-closed`: The Account's Commonplace License is Closed. `detail` gives the reason. `browser-handoff`: A person must finish this act in the browser: open `handoffUrl`.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "x-problem-types": [
+              "no-account",
+              "license-closed",
+              "browser-handoff"
+            ]
+          },
+          "422": {
+            "description": "`validation`: The input was refused. `errors` lists fields for a body or query that does not bind; otherwise `detail` gives the rule.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "x-problem-types": [
+              "validation"
+            ]
+          },
+          "429": {
+            "description": "`rate-limited`: Over the per-User rate limit. `Retry-After` says when to try again.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "x-problem-types": [
+              "rate-limited"
+            ]
+          }
+        }
+      }
+    },
+    "/api/v1/books/{id}": {
+      "patch": {
+        "tags": [
+          "Books"
+        ],
+        "summary": "Change a Book",
+        "description": "Changes the fields you send and keeps the rest, as the Edit page does; `null` clears a field that may be empty, and `title` cannot be cleared (422). `descriptionHtml` replaces the whole stored description. `coverUrl` may stay as stored, or become a web address (http or https) or the read address of an image the Account holds, else 422 on `coverUrl`. A call that sends only status flags (`isFavorite`, `isPurchased`, `isReading`, `isCompleted`) changes only those flags, as the Details page's status buttons do; a flag left out keeps its stored value. `coverUrl` may also be `upload:<uploadId>` for an image sent through an Upload link (`uploads.create`, target `image`), used once. An image may also be written `<img src=\"upload:<uploadId>\">` for an image sent through an Upload link (`uploads.create`, target `image`): each upload is used once, and one that is unknown, unfinished, used, or not yours answers 422 on that field.",
+        "operationId": "books.update",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiBookUpdate"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiBookUpdate"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiBookUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiBook"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`unauthorized`: No bearer, or an unknown, ended, or expired credential. `WWW-Authenticate` names the Protected Resource Metadata.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "x-problem-types": [
+              "unauthorized"
+            ]
+          },
+          "403": {
+            "description": "`no-account`: The credential is in no Account the User belongs to. `accounts` lists where it can switch to. `license-closed`: The Account's Commonplace License is Closed. `detail` gives the reason. `browser-handoff`: A person must finish this act in the browser: open `handoffUrl`.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "x-problem-types": [
+              "no-account",
+              "license-closed",
+              "browser-handoff"
+            ]
+          },
+          "404": {
+            "description": "`not-found`: No such record in this Account.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "x-problem-types": [
+              "not-found"
+            ]
+          },
+          "422": {
+            "description": "`validation`: The input was refused. `errors` lists fields for a body or query that does not bind; otherwise `detail` gives the rule.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "x-problem-types": [
+              "validation"
+            ]
+          },
+          "429": {
+            "description": "`rate-limited`: Over the per-User rate limit. `Retry-After` says when to try again.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "x-problem-types": [
+              "rate-limited"
+            ]
+          }
+        }
+      }
+    },
+    "/api/v1/images/{key}": {
+      "get": {
+        "tags": [
+          "Images"
+        ],
+        "summary": "Download an image",
+        "description": "Streams an image the journal holds, with its stored content type, and its stored file name in `Content-Disposition`. `key` is the id in an image address as it appears in `contentHtml`, `descriptionHtml`, or a cover: `/blobs/file/{key}/{name}`. An unknown key and another Account's key both answer 404.",
+        "operationId": "images.get",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "$ref": "#/components/schemas/Stream"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`unauthorized`: No bearer, or an unknown, ended, or expired credential. `WWW-Authenticate` names the Protected Resource Metadata.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "x-problem-types": [
+              "unauthorized"
+            ]
+          },
+          "403": {
+            "description": "`no-account`: The credential is in no Account the User belongs to. `accounts` lists where it can switch to. `license-closed`: The Account's Commonplace License is Closed. `detail` gives the reason. `browser-handoff`: A person must finish this act in the browser: open `handoffUrl`.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "x-problem-types": [
+              "no-account",
+              "license-closed",
+              "browser-handoff"
+            ]
+          },
+          "404": {
+            "description": "`not-found`: No such record in this Account.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "x-problem-types": [
+              "not-found"
+            ]
+          },
+          "429": {
+            "description": "`rate-limited`: Over the per-User rate limit. `Retry-After` says when to try again.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "x-problem-types": [
+              "rate-limited"
+            ]
+          }
+        }
+      }
+    },
+    "/api/v1/legal-acceptance": {
+      "post": {
+        "tags": [
+          "Legal Acceptance"
+        ],
+        "summary": "Hand Legal Acceptance off to the browser",
+        "description": "Legal Acceptance is a person's act, so this always answers 403 `browser-handoff`: show the person `handoffUrl`, where they accept the terms in the browser. Until they do, every call except the Account list and switch answers the same handoff.",
+        "operationId": "legal-acceptance.accept",
+        "responses": {
+          "403": {
+            "description": "`no-account`: The credential is in no Account the User belongs to. `accounts` lists where it can switch to. `license-closed`: The Account's Commonplace License is Closed. `detail` gives the reason. `browser-handoff`: A person must finish this act in the browser: open `handoffUrl`.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "x-problem-types": [
+              "no-account",
+              "license-closed",
+              "browser-handoff"
+            ]
+          },
+          "401": {
+            "description": "`unauthorized`: No bearer, or an unknown, ended, or expired credential. `WWW-Authenticate` names the Protected Resource Metadata.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "x-problem-types": [
+              "unauthorized"
+            ]
+          },
+          "429": {
+            "description": "`rate-limited`: Over the per-User rate limit. `Retry-After` says when to try again.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "x-problem-types": [
+              "rate-limited"
+            ]
+          }
+        }
+      }
+    },
+    "/api/v1/notes": {
+      "get": {
+        "tags": [
+          "Notes"
+        ],
+        "summary": "List Notes",
+        "description": "Lists the Notes with OData query options over stored fields (camelCase): `$filter` (e.g. `notebookId eq 3`, `contains(name, 'Lisbon')`), `$select`, `$orderby`, `$expand`, `$top` (default 50, at most 200), and `$skip`. Every row carries `id` (a number) and `url` (the Note's page); without `$select` that is all it carries. The stored fields are `notebookId`, `name` (named `title` on the single get), `richContentHtml` (the body as stored HTML, named `bodyHtml` on the single get), `createdAt`, and `lastUpdatedAt`. A page that selects `richContentHtml` holds at most five Notes: lower `$top` or leave the body out. `nextOffset` is the `$skip` for the next page, or null on the last one.",
+        "operationId": "notes.list",
+        "parameters": [
+          {
+            "name": "$filter",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "$select",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "$orderby",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "$expand",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "$top",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "$skip",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiListOfIReadOnlyDictionaryOfstringAndObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`unauthorized`: No bearer, or an unknown, ended, or expired credential. `WWW-Authenticate` names the Protected Resource Metadata.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "x-problem-types": [
+              "unauthorized"
+            ]
+          },
+          "403": {
+            "description": "`no-account`: The credential is in no Account the User belongs to. `accounts` lists where it can switch to. `license-closed`: The Account's Commonplace License is Closed. `detail` gives the reason. `browser-handoff`: A person must finish this act in the browser: open `handoffUrl`.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "x-problem-types": [
+              "no-account",
+              "license-closed",
+              "browser-handoff"
+            ]
+          },
+          "422": {
+            "description": "`validation`: The input was refused. `errors` lists fields for a body or query that does not bind; otherwise `detail` gives the rule.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "x-problem-types": [
+              "validation"
+            ]
+          },
+          "429": {
+            "description": "`rate-limited`: Over the per-User rate limit. `Retry-After` says when to try again.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "x-problem-types": [
+              "rate-limited"
+            ]
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Notes"
+        ],
+        "summary": "Create a Note",
+        "description": "Stores a Note as the New page does. `notebookId` and `title` are required: a Notebook that is not in this Account, or none, answers 422 on `notebookId`, and a missing or blank title answers 422 on `title`. `title` is plain text and trimmed; `bodyHtml` is HTML and is sanitized. An image in `bodyHtml` must be a web address (http or https), an image the Account already holds, or an image already in the body, else 422 on `bodyHtml`. A Note stays in the Notebook it was created in. Answers 201 with the new Note. An image may also be written `<img src=\"upload:<uploadId>\">` for an image sent through an Upload link (`uploads.create`, target `image`): each upload is used once, and one that is unknown, unfinished, used, or not yours answers 422 on that field.",
+        "operationId": "notes.create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiNoteCreate"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiNoteCreate"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiNoteCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiNote"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`unauthorized`: No bearer, or an unknown, ended, or expired credential. `WWW-Authenticate` names the Protected Resource Metadata.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "x-problem-types": [
+              "unauthorized"
+            ]
+          },
+          "403": {
+            "description": "`no-account`: The credential is in no Account the User belongs to. `accounts` lists where it can switch to. `license-closed`: The Account's Commonplace License is Closed. `detail` gives the reason. `browser-handoff`: A person must finish this act in the browser: open `handoffUrl`.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "x-problem-types": [
+              "no-account",
+              "license-closed",
+              "browser-handoff"
+            ]
+          },
+          "422": {
+            "description": "`validation`: The input was refused. `errors` lists fields for a body or query that does not bind; otherwise `detail` gives the rule.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "x-problem-types": [
+              "validation"
+            ]
+          },
+          "429": {
+            "description": "`rate-limited`: Over the per-User rate limit. `Retry-After` says when to try again.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "x-problem-types": [
+              "rate-limited"
+            ]
+          }
+        }
+      }
+    },
+    "/api/v1/uploads": {
+      "post": {
+        "tags": [
+          "Uploads"
+        ],
+        "summary": "Make an Upload link",
+        "description": "Returns a link that takes one file for you in this Account, with no bearer. `target` is what the file becomes: `image` or `conversation`. Send a small file as one `PUT <url>` with the raw bytes, which also finishes it (Images up to 50 MiB, Conversation images up to `maxBytes`). Send the file before `expiresAt`. Once finished, name `uploadId` in the one call that takes it. A person can also open `url` in a browser and pick the file there.",
+        "operationId": "uploads.create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiUploadCreate"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiUploadCreate"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiUploadCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiUploadLink"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`unauthorized`: No bearer, or an unknown, ended, or expired credential. `WWW-Authenticate` names the Protected Resource Metadata.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "x-problem-types": [
+              "unauthorized"
+            ]
+          },
+          "403": {
+            "description": "`no-account`: The credential is in no Account the User belongs to. `accounts` lists where it can switch to. `license-closed`: The Account's Commonplace License is Closed. `detail` gives the reason. `browser-handoff`: A person must finish this act in the browser: open `handoffUrl`.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "x-problem-types": [
+              "no-account",
+              "license-closed",
+              "browser-handoff"
+            ]
+          },
+          "422": {
+            "description": "`validation`: The input was refused. `errors` lists fields for a body or query that does not bind; otherwise `detail` gives the rule.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "x-problem-types": [
+              "validation"
+            ]
+          },
+          "429": {
+            "description": "`rate-limited`: Over the per-User rate limit. `Retry-After` says when to try again.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "x-problem-types": [
+              "rate-limited"
+            ]
+          }
+        }
+      }
+    },
+    "/api/v1/conversations": {
+      "post": {
+        "tags": [
+          "Conversations"
+        ],
+        "summary": "Start a conversation",
+        "description": "Starts an ordinary conversation of the User with our Assistant, private until the User shares it in the panel, and locked to one Conversation model: `model` when sent (a catalog key), else the User's preferred model. An unknown `model` answers 422. Send the first message with `POST /api/v1/conversations/{id}/messages`. Answers 201 with the conversation.",
+        "operationId": "conversations.create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ApiConversationCreate"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ApiConversationCreate"
+                  }
+                ]
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ApiConversationCreate"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiConversation"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`unauthorized`: No bearer, or an unknown, ended, or expired credential. `WWW-Authenticate` names the Protected Resource Metadata.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "x-problem-types": [
+              "unauthorized"
+            ]
+          },
+          "403": {
+            "description": "`no-account`: The credential is in no Account the User belongs to. `accounts` lists where it can switch to. `license-closed`: The Account's Commonplace License is Closed. `detail` gives the reason. `browser-handoff`: A person must finish this act in the browser: open `handoffUrl`. `forbidden`: The act is the Account Owner's.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "x-problem-types": [
+              "no-account",
+              "license-closed",
+              "browser-handoff",
+              "forbidden"
+            ]
+          },
+          "422": {
+            "description": "`validation`: The input was refused. `errors` lists fields for a body or query that does not bind; otherwise `detail` gives the rule.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "x-problem-types": [
+              "validation"
+            ]
+          },
+          "429": {
+            "description": "`rate-limited`: Over the per-User rate limit. `Retry-After` says when to try again.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "x-problem-types": [
+              "rate-limited"
+            ]
+          }
+        }
+      }
+    },
+    "/api/v1/conversations/{id}/messages": {
+      "post": {
+        "tags": [
+          "Conversations"
+        ],
+        "summary": "Send a message to the Assistant",
+        "description": "Sends `text` to our Assistant as the User, exactly as the panel does, and answers 202 once the message is stored and the Assistant's turn is on its way; read the reply with `GET …/messages?after={seq}&wait=60`. Answer the Assistant's questions and proposals with your next message. `pageContext` names what the message is about (the panel's Page context); `model`, when sent, must be the conversation's model. `uploadIds` are finished uploads with target `conversation`, each attached as a Conversation Attachment (at most 25 MiB, a PDF, image, text, Markdown, CSV, XLSX, or DOCX file). A send spends the Assistant allowance: an empty allowance answers 402 `allowance-exhausted`. A private conversation with a turn still running answers 409. A field problem answers 422.",
+        "operationId": "conversations.send-message",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiConversationMessageSend"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiConversationMessageSend"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiConversationMessageSend"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiConversationMessageSent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`unauthorized`: No bearer, or an unknown, ended, or expired credential. `WWW-Authenticate` names the Protected Resource Metadata.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "x-problem-types": [
+              "unauthorized"
+            ]
+          },
+          "402": {
+            "description": "`allowance-exhausted`: The Assistant allowance is empty.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "x-problem-types": [
+              "allowance-exhausted"
+            ]
+          },
+          "403": {
+            "description": "`no-account`: The credential is in no Account the User belongs to. `accounts` lists where it can switch to. `license-closed`: The Account's Commonplace License is Closed. `detail` gives the reason. `browser-handoff`: A person must finish this act in the browser: open `handoffUrl`. `forbidden`: The act is the Account Owner's.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "x-problem-types": [
+              "no-account",
+              "license-closed",
+              "browser-handoff",
+              "forbidden"
+            ]
+          },
+          "404": {
+            "description": "`not-found`: No such record in this Account.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "x-problem-types": [
+              "not-found"
+            ]
+          },
+          "409": {
+            "description": "`conflict`: The act clashes with the record's state.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "x-problem-types": [
+              "conflict"
+            ]
+          },
+          "422": {
+            "description": "`validation`: The input was refused. `errors` lists fields for a body or query that does not bind; otherwise `detail` gives the rule.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "x-problem-types": [
+              "validation"
+            ]
+          },
+          "429": {
+            "description": "`rate-limited`: Over the per-User rate limit. `Retry-After` says when to try again.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "x-problem-types": [
+              "rate-limited"
+            ]
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Conversations"
+        ],
+        "summary": "Read messages",
+        "description": "The conversation's messages after `after` (a `seq`; omit it for all), oldest first, with the turn state (`running` or `idle`). With `wait` (seconds, at most 60), when there are no messages after `after` yet and the Assistant is still answering, the call holds until the Assistant writes a message, its turn ends, or `wait` passes; so after a send, read with `after` set to the send's `seq` and `wait=60`, and read again while `turnState` is `running`. Each message carries its role (`user`, `assistant`, or `room`), its sender, its markdown text, its attachments, and the tools the Assistant ran before it with their outcome. Thinking never comes back.",
+        "operationId": "conversations.list-messages",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int64"
+            }
+          },
+          {
+            "name": "wait",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiConversationMessages"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`unauthorized`: No bearer, or an unknown, ended, or expired credential. `WWW-Authenticate` names the Protected Resource Metadata.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "x-problem-types": [
+              "unauthorized"
+            ]
+          },
+          "403": {
+            "description": "`no-account`: The credential is in no Account the User belongs to. `accounts` lists where it can switch to. `license-closed`: The Account's Commonplace License is Closed. `detail` gives the reason. `browser-handoff`: A person must finish this act in the browser: open `handoffUrl`. `forbidden`: The act is the Account Owner's.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "x-problem-types": [
+              "no-account",
+              "license-closed",
+              "browser-handoff",
+              "forbidden"
+            ]
+          },
+          "404": {
+            "description": "`not-found`: No such record in this Account.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "x-problem-types": [
+              "not-found"
+            ]
+          },
+          "422": {
+            "description": "`validation`: The input was refused. `errors` lists fields for a body or query that does not bind; otherwise `detail` gives the rule.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "x-problem-types": [
+              "validation"
+            ]
+          },
+          "429": {
+            "description": "`rate-limited`: Over the per-User rate limit. `Retry-After` says when to try again.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "x-problem-types": [
+              "rate-limited"
+            ]
+          }
+        }
+      }
+    },
+    "/api/v1/accounts": {
+      "get": {
+        "tags": [
+          "Accounts"
+        ],
+        "summary": "List the User's Accounts",
+        "description": "Lists every Account the signed-in User belongs to, each with `current` true for the Account the credential acts in now. Works even when the current Account is unusable (no membership, a Closed License, no Legal Acceptance), so call it first when another call answers `no-account`.",
+        "operationId": "accounts.list",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiListOfApiAccountListItem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`unauthorized`: No bearer, or an unknown, ended, or expired credential. `WWW-Authenticate` names the Protected Resource Metadata.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "x-problem-types": [
+              "unauthorized"
+            ]
+          },
+          "429": {
+            "description": "`rate-limited`: Over the per-User rate limit. `Retry-After` says when to try again.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "x-problem-types": [
+              "rate-limited"
+            ]
+          }
+        }
+      }
+    },
+    "/api/v1/accounts/{accountId}/switch": {
+      "post": {
+        "tags": [
+          "Accounts"
+        ],
+        "summary": "Switch the credential to another Account",
+        "description": "Moves the credential into the Account `accountId`, so every later call acts there until the next switch. Answers with the Account list, the new Account marked `current`. An Account the User is not in answers `not-found`.",
+        "operationId": "accounts.switch",
+        "parameters": [
+          {
+            "name": "accountId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiListOfApiAccountListItem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`unauthorized`: No bearer, or an unknown, ended, or expired credential. `WWW-Authenticate` names the Protected Resource Metadata.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "x-problem-types": [
+              "unauthorized"
+            ]
+          },
+          "404": {
+            "description": "`not-found`: No such record in this Account.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "x-problem-types": [
+              "not-found"
+            ]
+          },
+          "429": {
+            "description": "`rate-limited`: Over the per-User rate limit. `Retry-After` says when to try again.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "x-problem-types": [
+              "rate-limited"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ApiAccount": {
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      },
+      "ApiAccountListItem": {
+        "required": [
+          "id",
+          "name",
+          "current"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          },
+          "current": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ApiBook": {
+        "required": [
+          "account",
+          "id",
+          "url",
+          "title",
+          "author",
+          "isbn",
+          "genre",
+          "googleBooksLink",
+          "coverUrl",
+          "descriptionHtml",
+          "isFavorite",
+          "isPurchased",
+          "isReading",
+          "isCompleted",
+          "createdAt",
+          "lastUpdatedAt"
+        ],
+        "type": "object",
+        "properties": {
+          "account": {
+            "$ref": "#/components/schemas/ApiAccount"
+          },
+          "id": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "url": {
+            "type": "string"
+          },
+          "title": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "author": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "isbn": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "genre": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "googleBooksLink": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "coverUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "descriptionHtml": {
+            "type": "string"
+          },
+          "isFavorite": {
+            "type": "boolean"
+          },
+          "isPurchased": {
+            "type": "boolean"
+          },
+          "isReading": {
+            "type": "boolean"
+          },
+          "isCompleted": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lastUpdatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ApiBookCreate": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "author": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "isbn": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "genre": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "googleBooksLink": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "coverUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "descriptionHtml": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "isFavorite": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "isPurchased": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "isReading": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "isCompleted": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          }
+        }
+      },
+      "ApiBookUpdate": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "author": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "isbn": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "genre": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "googleBooksLink": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "coverUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "descriptionHtml": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "isFavorite": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "isPurchased": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "isReading": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "isCompleted": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          }
+        }
+      },
+      "ApiConversation": {
+        "required": [
+          "account",
+          "id",
+          "title",
+          "url",
+          "origin",
+          "turnState",
+          "shared",
+          "closed",
+          "model",
+          "lastError",
+          "splitFromConversationId",
+          "createdAt",
+          "lastMessageAt"
+        ],
+        "type": "object",
+        "properties": {
+          "account": {
+            "$ref": "#/components/schemas/ApiAccount"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "url": {
+            "type": "string"
+          },
+          "origin": {
+            "type": "string"
+          },
+          "turnState": {
+            "type": "string"
+          },
+          "shared": {
+            "type": "boolean"
+          },
+          "closed": {
+            "type": "boolean"
+          },
+          "model": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "lastError": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "splitFromConversationId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lastMessageAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ApiConversationCreate": {
+        "type": "object",
+        "properties": {
+          "model": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "ApiConversationMessage": {
+        "required": [
+          "id",
+          "seq",
+          "role",
+          "sender",
+          "text",
+          "attachments",
+          "toolActivity",
+          "turnState",
+          "createdAt"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "seq": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "role": {
+            "type": "string"
+          },
+          "sender": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ApiMessageSender"
+              }
+            ]
+          },
+          "text": {
+            "type": "string"
+          },
+          "attachments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ApiMessageAttachment"
+            }
+          },
+          "toolActivity": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ApiToolActivity"
+            }
+          },
+          "turnState": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ApiConversationMessages": {
+        "required": [
+          "account",
+          "conversationId",
+          "turnState",
+          "lastError",
+          "items"
+        ],
+        "type": "object",
+        "properties": {
+          "account": {
+            "$ref": "#/components/schemas/ApiAccount"
+          },
+          "conversationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "turnState": {
+            "type": "string"
+          },
+          "lastError": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ApiConversationMessage"
+            }
+          }
+        }
+      },
+      "ApiConversationMessageSend": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "pageContext": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ApiPageContext"
+              }
+            ]
+          },
+          "model": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "uploadIds": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "x-upload-target": "conversation"
+          }
+        }
+      },
+      "ApiConversationMessageSent": {
+        "required": [
+          "account",
+          "messageId",
+          "conversationId",
+          "seq",
+          "queued"
+        ],
+        "type": "object",
+        "properties": {
+          "account": {
+            "$ref": "#/components/schemas/ApiAccount"
+          },
+          "messageId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "conversationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "seq": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "queued": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ApiListOfApiAccountListItem": {
+        "required": [
+          "account",
+          "items",
+          "total",
+          "nextOffset"
+        ],
+        "type": "object",
+        "properties": {
+          "account": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ApiAccount"
+              }
+            ]
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ApiAccountListItem"
+            }
+          },
+          "total": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "nextOffset": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "ApiListOfIReadOnlyDictionaryOfstringAndObject": {
+        "required": [
+          "account",
+          "items",
+          "total",
+          "nextOffset"
+        ],
+        "type": "object",
+        "properties": {
+          "account": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ApiAccount"
+              }
+            ]
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "total": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "nextOffset": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "ApiMessageAttachment": {
+        "required": [
+          "id",
+          "fileName",
+          "contentType"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "fileName": {
+            "type": "string"
+          },
+          "contentType": {
+            "type": "string"
+          }
+        }
+      },
+      "ApiMessageSender": {
+        "required": [
+          "userId",
+          "personId",
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "userId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "personId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "ApiNote": {
+        "required": [
+          "account",
+          "id",
+          "url",
+          "notebookId",
+          "notebookName",
+          "title",
+          "bodyHtml",
+          "createdAt",
+          "lastUpdatedAt"
+        ],
+        "type": "object",
+        "properties": {
+          "account": {
+            "$ref": "#/components/schemas/ApiAccount"
+          },
+          "id": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "url": {
+            "type": "string"
+          },
+          "notebookId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "notebookName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "bodyHtml": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lastUpdatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ApiNoteCreate": {
+        "type": "object",
+        "properties": {
+          "notebookId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "title": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "bodyHtml": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "ApiPageContext": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "id": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "label": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "route": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "ApiToolActivity": {
+        "required": [
+          "name",
+          "outcome",
+          "isWrite"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "outcome": {
+            "type": "string"
+          },
+          "isWrite": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ApiUploadCreate": {
+        "type": "object",
+        "properties": {
+          "target": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "fileName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "ApiUploadLink": {
+        "required": [
+          "account",
+          "uploadId",
+          "url",
+          "target",
+          "fileName",
+          "partSize",
+          "maxBytes",
+          "expiresAt"
+        ],
+        "type": "object",
+        "properties": {
+          "account": {
+            "$ref": "#/components/schemas/ApiAccount"
+          },
+          "uploadId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "url": {
+            "type": "string"
+          },
+          "target": {
+            "type": "string"
+          },
+          "fileName": {
+            "type": "string"
+          },
+          "partSize": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "maxBytes": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Problem": {
+        "required": [
+          "type",
+          "title",
+          "status"
+        ],
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": "The stable problem token. An unexpected failure (500) answers `about:blank`."
+          },
+          "title": {
+            "type": "string"
+          },
+          "status": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "detail": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "account": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "integer",
+                "format": "int64"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "description": "The Account acted in, when known."
+          },
+          "accounts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "integer",
+                  "format": "int64"
+                },
+                "name": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "`no-account` only: the Accounts the credential can switch to."
+          },
+          "handoffUrl": {
+            "type": "string",
+            "description": "`browser-handoff` only: the page where a person finishes the act.",
+            "format": "uri"
+          },
+          "errors": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "description": "`validation` only, for a body that does not bind: messages by camelCase field."
+          }
+        },
+        "description": "ProblemDetails (RFC 9457). Branch on `type`; `title` and `detail` are in the User's UI language."
+      },
+      "Stream": {
+        "type": "string",
+        "format": "binary"
+      }
+    }
+  }
+}
